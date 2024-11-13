@@ -15,7 +15,7 @@ import {
   shake128,
   shake256,
 } from '../src/helper.js';
-import { getUInt32ArrayFromHex, getUInt8ArrayFromHex } from './utility/testUtility.js';
+import { getUInt32ArrayFromHex, getUInt8ArrayFromHex } from './testUtility.js';
 
 describe('Test cases for [helper]', () => {
   describe('shake128', () => {

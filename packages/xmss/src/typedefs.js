@@ -31,20 +31,3 @@
  * @property {Uint8Array} retain
  * @property {Uint32Array[number]} nextLeaf
  */
-
-/** @typedef {Uint32Array[number]} SignatureType */
-
-/** @typedef {Uint32Array[number]} AddrFormatType */
-
-/**
- * @typedef {Object} QRLDescriptor
- * @property {HashFunction} hashFunction
- * @property {SignatureType} signatureType
- * @property {Uint8Array[number]} height
- * @property {AddrFormatType} addrFormatType
- * @property {() => Uint8Array[number]} getHeight
- * @property {() => HashFunction} getHashFunction
- * @property {() => SignatureType} getSignatureType
- * @property {() => AddrFormatType} getAddrFormatType
- * @property {() => Uint8Array} getBytes
- */

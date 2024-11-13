@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import { describe, it } from 'mocha';
 import { HASH_FUNCTION } from '../src/constants.js';
 import { coreHash, hashH, prf } from '../src/hash.js';
-import { getUInt8ArrayFromHex } from './utility/testUtility.js';
+import { getUInt8ArrayFromHex } from './testUtility.js';
 
 describe('Test cases for [hash]', () => {
   describe('coreHash', () => {
