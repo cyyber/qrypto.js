@@ -1,10 +1,246 @@
-const { expect } = require('chai');
-const { hMsg, xmssFastSignMessage } = require('../src/xmss.js');
-const { getUInt8ArrayFromHex } = require('./testUtility.js');
-const { HASH_FUNCTION } = require('../src/constants.js');
-const { newBDSState } = require('../src/classes.js');
+import { expect } from 'chai';
+import { newBDSState, newWOTSParams, newXMSSParams } from '../src/classes.js';
+import { HASH_FUNCTION } from '../src/constants.js';
+import {
+  calcBaseW,
+  calculateSignatureBaseSize,
+  getSignatureSize,
+  hMsg,
+  wotsSign,
+  xmssFastSignMessage,
+} from '../src/xmss.js';
+import { getUInt32ArrayFromHex, getUInt8ArrayFromHex } from './testUtility.js';
 
 describe('Test cases for [xmss]', () => {
+  describe('calcBaseW', () => {
+    it('should calculate the base w, with w[6] input[4a4a...]', () => {
+      const n = 13;
+      const w = 6;
+      const wotsParams = newWOTSParams(n, w);
+      const outputLen = wotsParams.len1;
+      const output = new Uint8Array(wotsParams.len);
+      const input = getUInt8ArrayFromHex('4a4a20100cbd6e27a915b86f3b9e84fbcde1592d75515c8f52aaee9c4b');
+      const expectedWotsParams = newWOTSParams(n, w);
+      const expectedOutputLen = expectedWotsParams.len1;
+      const expectedOutput = getUInt8ArrayFromHex(
+        '010400000104000000000000000104000000010400010505010401040000010500000001000105050001040001040105000104010000000000'
+      );
+      const expectedInput = getUInt8ArrayFromHex('4a4a20100cbd6e27a915b86f3b9e84fbcde1592d75515c8f52aaee9c4b');
+      calcBaseW(output, outputLen, input, wotsParams);
+
+      expect(wotsParams).to.deep.equal(expectedWotsParams);
+      expect(outputLen).to.deep.equal(expectedOutputLen);
+      expect(output).to.deep.equal(expectedOutput);
+      expect(input).to.deep.equal(expectedInput);
+    });
+
+    it('should calculate the base w, with w[16] input[2217...]', () => {
+      const n = 25;
+      const w = 16;
+      const wotsParams = newWOTSParams(n, w);
+      const outputLen = wotsParams.len1;
+      const output = new Uint8Array(wotsParams.len);
+      const input = getUInt8ArrayFromHex('221742170407081722174217040708172217421704070817221742170407081722');
+      const expectedWotsParams = newWOTSParams(n, w);
+      const expectedOutputLen = expectedWotsParams.len1;
+      const expectedOutput = getUInt8ArrayFromHex(
+        '0202010704020107000400070008010702020107040201070004000700080107020201070402010700040007000801070202000000'
+      );
+      const expectedInput = getUInt8ArrayFromHex('221742170407081722174217040708172217421704070817221742170407081722');
+      calcBaseW(output, outputLen, input, wotsParams);
+
+      expect(wotsParams).to.deep.equal(expectedWotsParams);
+      expect(outputLen).to.deep.equal(expectedOutputLen);
+      expect(output).to.deep.equal(expectedOutput);
+      expect(input).to.deep.equal(expectedInput);
+    });
+
+    it('should calculate the base w, with w[256] input[9fca...]', () => {
+      const n = 11;
+      const w = 256;
+      const wotsParams = newWOTSParams(n, w);
+      const outputLen = wotsParams.len1;
+      const output = new Uint8Array(wotsParams.len);
+      const input = getUInt8ArrayFromHex('9fcad354487714f057dd96f113321010d43d23cc59a3e4d40aad2c92295f8348');
+      const expectedWotsParams = newWOTSParams(n, w);
+      const expectedOutputLen = expectedWotsParams.len1;
+      const expectedOutput = getUInt8ArrayFromHex('9fcad354487714f057dd960000');
+      const expectedInput = getUInt8ArrayFromHex('9fcad354487714f057dd96f113321010d43d23cc59a3e4d40aad2c92295f8348');
+      calcBaseW(output, outputLen, input, wotsParams);
+
+      expect(wotsParams).to.deep.equal(expectedWotsParams);
+      expect(outputLen).to.deep.equal(expectedOutputLen);
+      expect(output).to.deep.equal(expectedOutput);
+      expect(input).to.deep.equal(expectedInput);
+    });
+  });
+
+  describe('wotsSign', () => {
+    it('should throw an error if the size of addr is invalid', () => {
+      const hashFunction = HASH_FUNCTION.SHA2_256;
+      const sig = getUInt8ArrayFromHex('e0c9f68aa304ec65958dc6c83498dd3307a5cd174282998b9ea495f1');
+      const msg = getUInt8ArrayFromHex('8bac962de7f4e8b257424499c12b8f9faefc620cc4dd6b7a61ae');
+      const sk = getUInt8ArrayFromHex('44ac8c8d2928fc2c76c5b568355fd9ba772483ce39');
+      const n = 2;
+      const w = 16;
+      const params = newWOTSParams(n, w);
+      const pubSeed = getUInt8ArrayFromHex('e80ad1787ef276fda4d00f46286f8eef9a7b60bdb0ca03d594ed26f195ee151a0a');
+      const addr = getUInt8ArrayFromHex('883fd671d62de1');
+
+      expect(() => wotsSign(hashFunction, sig, msg, sk, params, pubSeed, addr)).to.throw(
+        'addr should be an array of size 8'
+      );
+    });
+
+    it('should sign wots, with SHA2_256 n[2] w[16]', () => {
+      const hashFunction = HASH_FUNCTION.SHA2_256;
+      const sig = getUInt8ArrayFromHex('e0c9f68aa304ec65958dc6c83498dd3307a5cd174282998b9ea495f1');
+      const msg = getUInt8ArrayFromHex('8bac962de7f4e8b257424499c12b8f9faefc620cc4dd6b7a61ae');
+      const sk = getUInt8ArrayFromHex('44ac8c8d2928fc2c76c5b568355fd9ba772483ce39');
+      const n = 2;
+      const w = 16;
+      const params = newWOTSParams(n, w);
+      const pubSeed = getUInt8ArrayFromHex('e80ad1787ef276fda4d00f46286f8eef9a7b60bdb0ca03d594ed26f195ee151a0a');
+      const addr = getUInt8ArrayFromHex('88f33fd671d62de1');
+      const expectedSig = getUInt8ArrayFromHex('428fad3327fb17f987df25883498dd3307a5cd174282998b9ea495f1');
+      const expectedMsg = getUInt8ArrayFromHex('8bac962de7f4e8b257424499c12b8f9faefc620cc4dd6b7a61ae');
+      const expectedSk = getUInt8ArrayFromHex('44ac8c8d2928fc2c76c5b568355fd9ba772483ce39');
+      const expectedParams = newWOTSParams(n, w);
+      const expectedPubSeed = getUInt8ArrayFromHex(
+        'e80ad1787ef276fda4d00f46286f8eef9a7b60bdb0ca03d594ed26f195ee151a0a'
+      );
+      const expectedAddr = getUInt8ArrayFromHex('88f33fd671050b01');
+      wotsSign(hashFunction, sig, msg, sk, params, pubSeed, addr);
+
+      expect(sig).to.deep.equal(expectedSig);
+      expect(msg).to.deep.equal(expectedMsg);
+      expect(sk).to.deep.equal(expectedSk);
+      expect(params).to.deep.equal(expectedParams);
+      expect(pubSeed).to.deep.equal(expectedPubSeed);
+      expect(addr).to.deep.equal(expectedAddr);
+    });
+
+    it('should sign wots, with SHAKE_128 n[2] w[6]', () => {
+      const hashFunction = HASH_FUNCTION.SHAKE_128;
+      const sig = getUInt8ArrayFromHex('0808020d040e000505070b0c020b0a0b0e00040b0d0208070c097a1a31b20f48e4');
+      const msg = getUInt8ArrayFromHex('b268b014fdebd6097a1a31b20f48e4e2093869285dbd9b1702');
+      const sk = getUInt8ArrayFromHex('723645967f189a4acbc6658a1ae9a089e0026c4b8da6efac');
+      const n = 2;
+      const w = 6;
+      const params = newWOTSParams(n, w);
+      const pubSeed = getUInt8ArrayFromHex('d92bc3e4eb84ef64bad2fc17002fb3ce967363311abb8086656ef64d2045e0a6ab82');
+      const addr = getUInt8ArrayFromHex('fdd7cf90409b661f');
+      const expectedSig = getUInt8ArrayFromHex('e6d5d72c3a90e8f7392286c5658dabd92b0e64f2765c08070c097a1a31b20f48e4');
+      const expectedMsg = getUInt8ArrayFromHex('b268b014fdebd6097a1a31b20f48e4e2093869285dbd9b1702');
+      const expectedSk = getUInt8ArrayFromHex('723645967f189a4acbc6658a1ae9a089e0026c4b8da6efac');
+      const expectedParams = newWOTSParams(n, w);
+      const expectedPubSeed = getUInt8ArrayFromHex(
+        'd92bc3e4eb84ef64bad2fc17002fb3ce967363311abb8086656ef64d2045e0a6ab82'
+      );
+      const expectedAddr = getUInt8ArrayFromHex('fdd7cf90400a0301');
+      wotsSign(hashFunction, sig, msg, sk, params, pubSeed, addr);
+
+      expect(sig).to.deep.equal(expectedSig);
+      expect(msg).to.deep.equal(expectedMsg);
+      expect(sk).to.deep.equal(expectedSk);
+      expect(params).to.deep.equal(expectedParams);
+      expect(pubSeed).to.deep.equal(expectedPubSeed);
+      expect(addr).to.deep.equal(expectedAddr);
+    });
+
+    it('should sign wots, with SHAKE_256 n[3] w[256]', () => {
+      const hashFunction = HASH_FUNCTION.SHAKE_256;
+      const sig = getUInt8ArrayFromHex('5e290e7a1b1a670de199a4ec954bfd3b72aca3e6a1954c09e7f08d');
+      const msg = getUInt8ArrayFromHex('227a5312705cd86531b825773e71df32a24a4317f567b8821b9c99c420304182cf40e2');
+      const sk = getUInt8ArrayFromHex('0bc66b3b21b295151d9e1f9afbdc43d51f1d8cb87a59f08481b6768c9b3b');
+      const n = 3;
+      const w = 256;
+      const params = newWOTSParams(n, w);
+      const pubSeed = getUInt8ArrayFromHex('f0a9a5450914063f8454a81a4c3f3ddcccf029fcc5e107f6b9');
+      const addr = getUInt8ArrayFromHex('0dd7426a623769b7');
+      const expectedSig = getUInt8ArrayFromHex('a3d28fd861260b43f56352ef0fd1e63b72aca3e6a1954c09e7f08d');
+      const expectedMsg = getUInt8ArrayFromHex(
+        '227a5312705cd86531b825773e71df32a24a4317f567b8821b9c99c420304182cf40e2'
+      );
+      const expectedSk = getUInt8ArrayFromHex('0bc66b3b21b295151d9e1f9afbdc43d51f1d8cb87a59f08481b6768c9b3b');
+      const expectedParams = newWOTSParams(n, w);
+      const expectedPubSeed = getUInt8ArrayFromHex('f0a9a5450914063f8454a81a4c3f3ddcccf029fcc5e107f6b9');
+      const expectedAddr = getUInt8ArrayFromHex('0dd7426a62040d01');
+      wotsSign(hashFunction, sig, msg, sk, params, pubSeed, addr);
+
+      expect(sig).to.deep.equal(expectedSig);
+      expect(msg).to.deep.equal(expectedMsg);
+      expect(sk).to.deep.equal(expectedSk);
+      expect(params).to.deep.equal(expectedParams);
+      expect(pubSeed).to.deep.equal(expectedPubSeed);
+      expect(addr).to.deep.equal(expectedAddr);
+    });
+  });
+
+  describe('calculateSignatureBaseSize', () => {
+    it('should return the signature base size for the keysize 65', () => {
+      const [keySize] = getUInt32ArrayFromHex('00000041');
+      const signautreBaseSize = calculateSignatureBaseSize(keySize);
+      const expectedSignatureBaseSize = 101;
+
+      expect(signautreBaseSize).to.equal(expectedSignatureBaseSize);
+    });
+
+    it('should return the signature base size for the keysize 399', () => {
+      const [keySize] = getUInt32ArrayFromHex('0000018f');
+      const signautreBaseSize = calculateSignatureBaseSize(keySize);
+      const expectedSignatureBaseSize = 435;
+
+      expect(signautreBaseSize).to.equal(expectedSignatureBaseSize);
+    });
+
+    it('should return the signature base size for the keysize 1064', () => {
+      const [keySize] = getUInt32ArrayFromHex('00000428');
+      const signautreBaseSize = calculateSignatureBaseSize(keySize);
+      const expectedSignatureBaseSize = 1100;
+
+      expect(signautreBaseSize).to.equal(expectedSignatureBaseSize);
+    });
+  });
+
+  describe('getSignatureSize', () => {
+    it('should return the signature size for the n[2] h[4] w[6] k[8]', () => {
+      const n = 2;
+      const h = 4;
+      const w = 6;
+      const k = 8;
+      const params = newXMSSParams(n, h, w, k);
+      const signatureSize = getSignatureSize(params);
+      const expectedSignatureSize = 186;
+
+      expect(signatureSize).to.equal(expectedSignatureSize);
+    });
+
+    it('should return the signature size for the n[13] h[7] w[16] k[3]', () => {
+      const n = 13;
+      const h = 7;
+      const w = 16;
+      const k = 9;
+      const params = newXMSSParams(n, h, w, k);
+      const signatureSize = getSignatureSize(params);
+      const expectedSignatureSize = 637;
+
+      expect(signatureSize).to.equal(expectedSignatureSize);
+    });
+
+    it('should return the signature size for the n[25] h[13] w[256] k[9]', () => {
+      const n = 25;
+      const h = 13;
+      const w = 256;
+      const k = 9;
+      const params = newXMSSParams(n, h, w, k);
+      const signatureSize = getSignatureSize(params);
+      const expectedSignatureSize = 1127;
+
+      expect(signatureSize).to.equal(expectedSignatureSize);
+    });
+  });
+
   describe('hMsg', () => {
     it('should return an error if key length is not equal to 3 times n', () => {
       const hashFunction = HASH_FUNCTION.SHAKE_128;
