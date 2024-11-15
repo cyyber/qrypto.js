@@ -9,6 +9,14 @@
  * @property {Uint32Array[number]} keySize
  */
 
+/**
+ * @typedef {Object} XMSSParams
+ * @property {WOTSParams} wotsParams
+ * @property {Uint32Array[number]} n
+ * @property {Uint32Array[number]} h
+ * @property {Uint32Array[number]} k
+ */
+
 /** @typedef {Uint32Array[number]} HashFunction */
 
 /**
@@ -30,4 +38,10 @@
  * @property {TreeHashInst[]} treeHash
  * @property {Uint8Array} retain
  * @property {Uint32Array[number]} nextLeaf
+ */
+
+/**
+ * @typedef {Object} SignatureReturnType
+ * @property {Uint8Array | null} sigMsg
+ * @property {string | null} error
  */
