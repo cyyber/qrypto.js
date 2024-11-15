@@ -3,7 +3,7 @@ import jsSha3CommonJsPackage from 'js-sha3';
 
 /// <reference path="typedefs.js" />
 
-class TreeHashInstClass {
+class TreeHashInst {
   constructor(n = 0) {
     [this.h] = new Uint32Array([0]);
     [this.nextIdx] = new Uint32Array([0]);
@@ -18,10 +18,10 @@ class TreeHashInstClass {
  * @returns {TreeHashInst}
  */
 function newTreeHashInst(n) {
-  return new TreeHashInstClass(n);
+  return new TreeHashInst(n);
 }
 
-class BDSStateClass {
+class BDSState {
   constructor(height, n, k) {
     this.stackOffset = 0;
     this.stack = new Uint8Array((height + 1) * n);
@@ -44,10 +44,10 @@ class BDSStateClass {
  * @returns {BDSState}
  */
 function newBDSState(height, n, k) {
-  return new BDSStateClass(height, n, k);
+  return new BDSState(height, n, k);
 }
 
-class WOTSParamsClass {
+class WOTSParams {
   constructor(n, w) {
     this.n = n;
     this.w = w;
@@ -69,10 +69,10 @@ class WOTSParamsClass {
  * @returns {WOTSParams}
  */
 function newWOTSParams(n, w) {
-  return new WOTSParamsClass(n, w);
+  return new WOTSParams(n, w);
 }
 
-class XMSSParamsClass {
+class XMSSParams {
   constructor(n, h, w, k) {
     this.wotsParams = newWOTSParams(n, w);
     this.n = n;
@@ -89,7 +89,7 @@ class XMSSParamsClass {
  * @returns {XMSSParams}
  */
 function newXMSSParams(n, h, w, k) {
-  return new XMSSParamsClass(n, h, w, k);
+  return new XMSSParams(n, h, w, k);
 }
 
 const ENDIAN = Object.freeze({
