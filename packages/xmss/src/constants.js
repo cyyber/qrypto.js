@@ -8,3 +8,9 @@ export const HASH_FUNCTION = Object.freeze({
   SHAKE_128: 1,
   SHAKE_256: 2,
 });
+
+export const WOTS_PARAM = Object.freeze({
+  K: 2,
+  W: 16,
+  N: 32,
+});

@@ -4,10 +4,14 @@ import { HASH_FUNCTION } from '../src/constants.js';
 import {
   calcBaseW,
   calculateSignatureBaseSize,
+  getHeightFromSigSize,
   getSignatureSize,
   hMsg,
+  validateAuthPath,
+  wotsPKFromSig,
   wotsSign,
   xmssFastSignMessage,
+  xmssVerifySig,
 } from '../src/xmss.js';
 import { getUInt32ArrayFromHex, getUInt8ArrayFromHex } from './testUtility.js';
 
@@ -451,6 +455,302 @@ describe('Test cases for [xmss]', () => {
       expect(message).to.deep.equal(expectedMessage);
       expect(sigMsg).to.deep.equal(expectedSigMsg);
       expect(error).to.equal(null);
+    });
+  });
+
+  describe('getHeightFromSigSize', () => {
+    it('should throw an error if the sigSize is less than the signature base size', () => {
+      const sigSize = 7;
+      const wotsParamW = 16;
+
+      expect(() => getHeightFromSigSize(sigSize, wotsParamW)).to.throw('Invalid signature size');
+    });
+
+    it('should throw an error if the sigSize is invalid', () => {
+      const sigSize = 2200;
+      const wotsParamW = 256;
+
+      expect(() => getHeightFromSigSize(sigSize, wotsParamW)).to.throw('Invalid signature size');
+    });
+
+    it('should generate height with sigSize[4292] wotsParamW[6]', () => {
+      const sigSize = 4292;
+      const wotsParamW = 6;
+      const height = getHeightFromSigSize(sigSize, wotsParamW);
+      const expectedHeight = 0;
+
+      expect(height).to.equal(expectedHeight);
+    });
+
+    it('should generate height with sigSize[2212] wotsParamW[16]', () => {
+      const sigSize = 2212;
+      const wotsParamW = 16;
+      const height = getHeightFromSigSize(sigSize, wotsParamW);
+      const expectedHeight = 1;
+
+      expect(height).to.equal(expectedHeight);
+    });
+
+    it('should generate height with sigSize[1700] wotsParamW[256]', () => {
+      const sigSize = 1700;
+      const wotsParamW = 256;
+      const height = getHeightFromSigSize(sigSize, wotsParamW);
+      const expectedHeight = 18;
+
+      expect(height).to.equal(expectedHeight);
+    });
+  });
+
+  describe('wotsPKFromSig', () => {
+    it('should throw an error if the size of addr is not ADDRESS_SIZE', () => {
+      const hashFunction = HASH_FUNCTION.SHAKE_128;
+      const pk = getUInt8ArrayFromHex(
+        'a59ee432f2fdc2fc06d51976faa43161506e8845f70392cf2423b7eff8a59ee432f2fdc2fc06d519'
+      );
+      const sig = getUInt8ArrayFromHex('480b7a02c286425053b2714448c423f8246b6f');
+      const msg = getUInt8ArrayFromHex('3df3b0cb7f85e9196d01c9eb51f917b2b63926ac');
+      const w = 256;
+      const n = 2;
+      const wotsParams = newWOTSParams(n, w);
+      const pubSeed = getUInt8ArrayFromHex('990ac70f1c74a0f2d75e9dde8e06b0303e223db14d20c287c1');
+      const addr = getUInt8ArrayFromHex('37f48e9a15fd');
+
+      expect(() => wotsPKFromSig(hashFunction, pk, sig, msg, wotsParams, pubSeed, addr)).to.throw(
+        'addr should be an array of size 8'
+      );
+    });
+
+    it('should generate wotsPK from Sig', () => {
+      const hashFunction = HASH_FUNCTION.SHAKE_128;
+      const pk = getUInt8ArrayFromHex(
+        '6e8845f70392cf2423b7eff8a59ee432f2fdc2fc06d51976faa43161506e8845f70392cf2423b7eff8a59ee432f2fdc2fc06d51976faa4316150'
+      );
+      const sig = getUInt8ArrayFromHex(
+        'b2714448c423f8246b6ff9aa480b7a02c286425053b2714448c423f8246b6ff9aa480b7a02c286425053'
+      );
+      const msg = getUInt8ArrayFromHex('422bb81a5061bf90bb9a4e3df3b0cb7f85e9196d01c9eb51f917b2b63926ac0bd331f939');
+      const w = 6;
+      const n = 2;
+      const wotsParams = newWOTSParams(n, w);
+      const pubSeed = getUInt8ArrayFromHex(
+        '73e280e3123a762256990ac70f1c74a0f2d75e9dde8e06b0303e223db14d20c287c101f185577fe63d47dd64ba30c3'
+      );
+      const addr = getUInt8ArrayFromHex('37f48e9a22c915fd');
+      const expectedPk = getUInt8ArrayFromHex(
+        '3c46048313be496791945ce08fb0055d73b009e785661976faa43161506e8845f70392cf2423b7eff8a59ee432f2fdc2fc06d51976faa4316150'
+      );
+      const expectedSig = getUInt8ArrayFromHex(
+        'b2714448c423f8246b6ff9aa480b7a02c286425053b2714448c423f8246b6ff9aa480b7a02c286425053'
+      );
+      const expectedMsg = getUInt8ArrayFromHex(
+        '422bb81a5061bf90bb9a4e3df3b0cb7f85e9196d01c9eb51f917b2b63926ac0bd331f939'
+      );
+      const expectedWotsParams = newWOTSParams(n, w);
+      const expectedPubSeed = getUInt8ArrayFromHex(
+        '73e280e3123a762256990ac70f1c74a0f2d75e9dde8e06b0303e223db14d20c287c101f185577fe63d47dd64ba30c3'
+      );
+      const expectedAddr = getUInt8ArrayFromHex('37f48e9a220a0401');
+      wotsPKFromSig(hashFunction, pk, sig, msg, wotsParams, pubSeed, addr);
+
+      expect(pk).to.deep.equal(expectedPk);
+      expect(sig).to.deep.equal(expectedSig);
+      expect(msg).to.deep.equal(expectedMsg);
+      expect(wotsParams).to.deep.equal(expectedWotsParams);
+      expect(pubSeed).to.deep.equal(expectedPubSeed);
+      expect(addr).to.deep.equal(expectedAddr);
+    });
+  });
+
+  describe('validateAuthPath', () => {
+    it('should throw an error if the size of addr is invalid', () => {
+      const hashFunction = HASH_FUNCTION.SHAKE_128;
+      const root = getUInt8ArrayFromHex(
+        'a59ee432f2fdc2fc06d51976faa43161506e8845f70392cf2423b7eff8a59ee432f2fdc2fc06d519'
+      );
+      const leaf = getUInt8ArrayFromHex('480b7a02c286425053b2714448c423f8246b6f');
+      const leafIdx = 8;
+      const authPath = getUInt8ArrayFromHex('990ac70f1c74a0f2d75e9dde8e06b0303e223db14d20c287c1');
+      const n = 4;
+      const h = 3;
+      const pubSeed = getUInt8ArrayFromHex('480b7a02c286425053b2714448c423f8246b6f');
+      const addr = getUInt8ArrayFromHex('37f48e9a15fd');
+
+      expect(() => validateAuthPath(hashFunction, root, leaf, leafIdx, authPath, n, h, pubSeed, addr)).to.throw(
+        'addr should be an array of size 8'
+      );
+    });
+
+    it('should validate the auth path, with root[4efa...]', () => {
+      const hashFunction = HASH_FUNCTION.SHA2_256;
+      const root = getUInt8ArrayFromHex('4efa463f638d84acd09c154bd9c3730e72d9680736eac038ebda6c204e062cb08a478f');
+      const leaf = getUInt8ArrayFromHex('7311d12fa38096f21c5ff3f1c6f32eea46a03abe1cdb49');
+      const leafIdx = 3;
+      const authPath = getUInt8ArrayFromHex('13d890ba01a01fd7a7fdb3589b99ac880c8c827cd6dfcb3c868f5c1e736bb4');
+      const n = 1;
+      const h = 3;
+      const pubSeed = getUInt8ArrayFromHex('00dcdf1105de00a8696fe271dd0e93099a91c75d00ee');
+      const addr = getUInt8ArrayFromHex('3133283e8558fa87');
+      const expectedRoot = getUInt8ArrayFromHex(
+        '30fa463f638d84acd09c154bd9c3730e72d9680736eac038ebda6c204e062cb08a478f'
+      );
+      const expectedLeaf = getUInt8ArrayFromHex('7311d12fa38096f21c5ff3f1c6f32eea46a03abe1cdb49');
+      const expectedLeafIdx = 3;
+      const expectedAuthPath = getUInt8ArrayFromHex('13d890ba01a01fd7a7fdb3589b99ac880c8c827cd6dfcb3c868f5c1e736bb4');
+      const expectedPubSeed = getUInt8ArrayFromHex('00dcdf1105de00a8696fe271dd0e93099a91c75d00ee');
+      const expectedAddr = getUInt8ArrayFromHex('3133283e85020002');
+      validateAuthPath(hashFunction, root, leaf, leafIdx, authPath, n, h, pubSeed, addr);
+
+      expect(root).to.deep.equal(expectedRoot);
+      expect(leaf).to.deep.equal(expectedLeaf);
+      expect(leafIdx).to.deep.equal(expectedLeafIdx);
+      expect(authPath).to.deep.equal(expectedAuthPath);
+      expect(pubSeed).to.deep.equal(expectedPubSeed);
+      expect(addr).to.deep.equal(expectedAddr);
+    });
+
+    it('should validate the auth path, with root[a59e...]', () => {
+      const hashFunction = HASH_FUNCTION.SHAKE_128;
+      const root = getUInt8ArrayFromHex(
+        'a59ee432f2fdc2fc06d51976faa43161506e8845f70392cf2423b7eff8a59ee432f2fdc2fc06d519'
+      );
+      const leaf = getUInt8ArrayFromHex('480b7a02c286425053b2714448c423f8246b6f');
+      const leafIdx = 8;
+      const authPath = getUInt8ArrayFromHex('990ac70f1c74a0f2d75e9dde8e06b0303e223db14d20c287c1');
+      const n = 4;
+      const h = 3;
+      const pubSeed = getUInt8ArrayFromHex('480b7a02c286425053b2714448c423f8246b6f');
+      const addr = getUInt8ArrayFromHex('37f48e9a15fd1716');
+      const expectedRoot = getUInt8ArrayFromHex(
+        'bbcc59adf2fdc2fc06d51976faa43161506e8845f70392cf2423b7eff8a59ee432f2fdc2fc06d519'
+      );
+      const expectedLeaf = getUInt8ArrayFromHex('480b7a02c286425053b2714448c423f8246b6f');
+      const expectedLeafIdx = 8;
+      const expectedAuthPath = getUInt8ArrayFromHex('990ac70f1c74a0f2d75e9dde8e06b0303e223db14d20c287c1');
+      const expectedPubSeed = getUInt8ArrayFromHex('480b7a02c286425053b2714448c423f8246b6f');
+      const expectedAddr = getUInt8ArrayFromHex('37f48e9a15020102');
+      validateAuthPath(hashFunction, root, leaf, leafIdx, authPath, n, h, pubSeed, addr);
+
+      expect(root).to.deep.equal(expectedRoot);
+      expect(leaf).to.deep.equal(expectedLeaf);
+      expect(leafIdx).to.deep.equal(expectedLeafIdx);
+      expect(authPath).to.deep.equal(expectedAuthPath);
+      expect(pubSeed).to.deep.equal(expectedPubSeed);
+      expect(addr).to.deep.equal(expectedAddr);
+    });
+
+    it('should validate the auth path, with root[f2fd...]', () => {
+      const hashFunction = HASH_FUNCTION.SHAKE_256;
+      const root = getUInt8ArrayFromHex(
+        'f2fda18d71163a7d9bf6ccc64b9d9c6b0e578829e63d170329830e8f157014f44ce80416e9fcb5b9f9210787aa'
+      );
+      const leaf = getUInt8ArrayFromHex('391765300c23233db115f7d3034dec404a99a2aaef0dd44bd591e8e22d812b793e');
+      const leafIdx = 3;
+      const authPath = getUInt8ArrayFromHex('a1051033207212fddebee14e33b1a2e634e4b3b670e2cc93691fabc7be39');
+      const n = 3;
+      const h = 8;
+      const pubSeed = getUInt8ArrayFromHex('719b19ebcda7b6add7679553d528708abf8993d6e9314e1853a1');
+      const addr = getUInt8ArrayFromHex('61f4222837f278bd');
+      const expectedRoot = getUInt8ArrayFromHex(
+        'f843988d71163a7d9bf6ccc64b9d9c6b0e578829e63d170329830e8f157014f44ce80416e9fcb5b9f9210787aa'
+      );
+      const expectedLeaf = getUInt8ArrayFromHex('391765300c23233db115f7d3034dec404a99a2aaef0dd44bd591e8e22d812b793e');
+      const expectedLeafIdx = 3;
+      const expectedAuthPath = getUInt8ArrayFromHex('a1051033207212fddebee14e33b1a2e634e4b3b670e2cc93691fabc7be39');
+      const expectedPubSeed = getUInt8ArrayFromHex('719b19ebcda7b6add7679553d528708abf8993d6e9314e1853a1');
+      const expectedAddr = getUInt8ArrayFromHex('61f4222837070002');
+      validateAuthPath(hashFunction, root, leaf, leafIdx, authPath, n, h, pubSeed, addr);
+
+      expect(root).to.deep.equal(expectedRoot);
+      expect(leaf).to.deep.equal(expectedLeaf);
+      expect(leafIdx).to.deep.equal(expectedLeafIdx);
+      expect(authPath).to.deep.equal(expectedAuthPath);
+      expect(pubSeed).to.deep.equal(expectedPubSeed);
+      expect(addr).to.deep.equal(expectedAddr);
+    });
+  });
+
+  describe('xmssVerifySig', () => {
+    it('should verify the signature, with msg[f345...]', () => {
+      const hashFunction = HASH_FUNCTION.SHA2_256;
+      const w = 6;
+      const n = 2;
+      const wotsParams = newWOTSParams(n, w);
+      const msg = getUInt8ArrayFromHex('f3454cfc80dd0327d853475d86bdf9abf0304aace39a8bbcf640f6a469c508');
+      const sigMsg = getUInt8ArrayFromHex(
+        '8d786597b98d30a426b3a784a7459f598dfba8e33794be95164a99e58c2a414b981d444020bb74'
+      );
+      const pk = getUInt8ArrayFromHex('fd76a35af60f5c04057e58765e1e5525cc89c895a58f0f0a');
+      const h = 5;
+      const expectedWotsParams = newWOTSParams(n, w);
+      const expectedMsg = getUInt8ArrayFromHex('f3454cfc80dd0327d853475d86bdf9abf0304aace39a8bbcf640f6a469c508');
+      const expectedSigMsg = getUInt8ArrayFromHex(
+        '8d786597b98d30a426b3a784a7459f598dfba8e33794be95164a99e58c2a414b981d444020bb74'
+      );
+      const expectedPk = getUInt8ArrayFromHex('fd76a35af60f5c04057e58765e1e5525cc89c895a58f0f0a');
+      xmssVerifySig(hashFunction, wotsParams, msg, sigMsg, pk, h);
+
+      expect(wotsParams).to.deep.equal(expectedWotsParams);
+      expect(msg).to.deep.equal(expectedMsg);
+      expect(sigMsg).to.deep.equal(expectedSigMsg);
+      expect(pk).to.deep.equal(expectedPk);
+    });
+
+    it('should verify the signature, with msg[5451...]', () => {
+      const hashFunction = HASH_FUNCTION.SHAKE_128;
+      const w = 16;
+      const n = 2;
+      const wotsParams = newWOTSParams(n, w);
+      const msg = getUInt8ArrayFromHex(
+        '5451c62c4c4b8acb6b521eacb345aae7e2f5141225f4e5c725c48b078036d1d639e7e5d11bc6a0d079d7eab06f037cf7564c51'
+      );
+      const sigMsg = getUInt8ArrayFromHex(
+        '509096689c94a5ed9133178f218d50c166582da39c697102a666455ea56030a95fd0b677016cea28c0e12779a55192'
+      );
+      const pk = getUInt8ArrayFromHex('39b72ed308955b8588d7667c8bf92ee601d15e742fe958efcc68');
+      const h = 3;
+      const expectedWotsParams = newWOTSParams(n, w);
+      const expectedMsg = getUInt8ArrayFromHex(
+        '5451c62c4c4b8acb6b521eacb345aae7e2f5141225f4e5c725c48b078036d1d639e7e5d11bc6a0d079d7eab06f037cf7564c51'
+      );
+      const expectedSigMsg = getUInt8ArrayFromHex(
+        '509096689c94a5ed9133178f218d50c166582da39c697102a666455ea56030a95fd0b677016cea28c0e12779a55192'
+      );
+      const expectedPk = getUInt8ArrayFromHex('39b72ed308955b8588d7667c8bf92ee601d15e742fe958efcc68');
+      xmssVerifySig(hashFunction, wotsParams, msg, sigMsg, pk, h);
+
+      expect(wotsParams).to.deep.equal(expectedWotsParams);
+      expect(msg).to.deep.equal(expectedMsg);
+      expect(sigMsg).to.deep.equal(expectedSigMsg);
+      expect(pk).to.deep.equal(expectedPk);
+    });
+
+    it('should verify the signature, with msg[3c39...]', () => {
+      const hashFunction = HASH_FUNCTION.SHAKE_256;
+      const w = 16;
+      const n = 2;
+      const wotsParams = newWOTSParams(n, w);
+      const msg = getUInt8ArrayFromHex(
+        '3c391e503d010c617f0f89514482e7076cb57094dce5539ae47e903be12abb82cc80a92d3dbfb3'
+      );
+      const sigMsg = getUInt8ArrayFromHex(
+        '004501f5b0d3a0b3b59246153fe2eb76be2b5a5bb169d33b24778a3adc33818b99c256d5b2f71a9db60e512d925b9f7aec'
+      );
+      const pk = getUInt8ArrayFromHex('afc404fcd268b29cc828d6e9fd535ffae54cdb6d010006466a8cf4cc49adf867463aaa');
+      const h = 7;
+      const expectedWotsParams = newWOTSParams(n, w);
+      const expectedMsg = getUInt8ArrayFromHex(
+        '3c391e503d010c617f0f89514482e7076cb57094dce5539ae47e903be12abb82cc80a92d3dbfb3'
+      );
+      const expectedSigMsg = getUInt8ArrayFromHex(
+        '004501f5b0d3a0b3b59246153fe2eb76be2b5a5bb169d33b24778a3adc33818b99c256d5b2f71a9db60e512d925b9f7aec'
+      );
+      const expectedPk = getUInt8ArrayFromHex('afc404fcd268b29cc828d6e9fd535ffae54cdb6d010006466a8cf4cc49adf867463aaa');
+      xmssVerifySig(hashFunction, wotsParams, msg, sigMsg, pk, h);
+
+      expect(wotsParams).to.deep.equal(expectedWotsParams);
+      expect(msg).to.deep.equal(expectedMsg);
+      expect(sigMsg).to.deep.equal(expectedSigMsg);
+      expect(pk).to.deep.equal(expectedPk);
     });
   });
 });

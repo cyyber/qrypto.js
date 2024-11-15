@@ -105,6 +105,12 @@ const HASH_FUNCTION = Object.freeze({
   SHAKE_256: 2,
 });
 
+const WOTS_PARAM = Object.freeze({
+  K: 2,
+  W: 16,
+  N: 32,
+});
+
 const { shake256: sha3Shake256, shake128: sha3Shake128 } = jsSha3CommonJsPackage;
 
 /**
@@ -1036,8 +1042,226 @@ function xmssFastSignMessage(hashFunction, params, sk, bdsState, message) {
   return { sigMsg, error: null };
 }
 
+/**
+ * @param {Uint32Array[number]} sigSize
+ * @param {Uint32Array[number]} wotsParamW
+ * @returns {Uint32Array[number]}
+ */
+function getHeightFromSigSize(sigSize, wotsParamW) {
+  const wotsParam = newWOTSParams(WOTS_PARAM.N, wotsParamW);
+  const signatureBaseSize = calculateSignatureBaseSize(wotsParam.keySize);
+  if (sigSize < signatureBaseSize) {
+    throw new Error('Invalid signature size');
+  }
+
+  if ((sigSize - 4) % 32 !== 0) {
+    throw new Error('Invalid signature size');
+  }
+
+  return new Uint32Array([(sigSize - signatureBaseSize) / 32])[0];
+}
+
+/**
+ * @param {HashFunction} hashfunction
+ * @param {Uint8Array} pk
+ * @param {Uint8Array} sig
+ * @param {Uint8Array} msg
+ * @param {WOTSParams} wotsParams
+ * @param {Uint8Array} pubSeed
+ * @param {Uint32Array} addr
+ */
+function wotsPKFromSig(hashfunction, pk, sig, msg, wotsParams, pubSeed, addr) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
+  const {
+    len: XMSSWOTSLEN,
+    len1: XMSSWOTSLEN1,
+    len2: XMSSWOTSLEN2,
+    logW: XMSSWOTSLOGW,
+    w: XMSSWOTSW,
+    n: XMSSN,
+  } = wotsParams;
+
+  const baseW = new Uint8Array(XMSSWOTSLEN);
+  let cSum = new Uint32Array([0])[0];
+  const cSumBytes = new Uint8Array((XMSSWOTSLEN2 * XMSSWOTSLOGW + 7) / 8);
+  const cSumBaseW = new Uint8Array(XMSSWOTSLEN2);
+
+  calcBaseW(baseW, XMSSWOTSLEN1, msg, wotsParams);
+
+  for (let i = 0; i < XMSSWOTSLEN1; i++) {
+    cSum += XMSSWOTSW - 1 - new Uint32Array([baseW[i]])[0];
+  }
+
+  cSum <<= 8 - ((XMSSWOTSLEN2 * XMSSWOTSLOGW) % 8);
+
+  toByteLittleEndian(cSumBytes, cSum, (XMSSWOTSLEN2 * XMSSWOTSLOGW + 7) / 8);
+  calcBaseW(cSumBaseW, XMSSWOTSLEN2, cSumBytes, wotsParams);
+
+  for (let i = 0; i < XMSSWOTSLEN2; i++) {
+    baseW.set([cSumBaseW[i]], XMSSWOTSLEN1 + i);
+  }
+  for (let i = 0; i < XMSSWOTSLEN; i++) {
+    setChainAddr(addr, i);
+    const offset = i * XMSSN;
+    genChain(
+      hashfunction,
+      pk.subarray(offset, offset + XMSSN),
+      sig.subarray(offset, offset + XMSSN),
+      new Uint32Array([baseW[i]])[0],
+      XMSSWOTSW - 1 - new Uint32Array([baseW[i]])[0],
+      wotsParams,
+      pubSeed,
+      addr
+    );
+  }
+}
+
+/**
+ * @param {HashFunction} hashFunction
+ * @param {Uint8Array} root
+ * @param {Uint8Array} leaf
+ * @param {Uint32Array[number]} leafIdx
+ * @param {Uint8Array} authpath
+ * @param {Uint32Array[number]} n
+ * @param {Uint32Array[number]} h
+ * @param {Uint8Array} pubSeed
+ * @param {Uint32Array} addr
+ */
+function validateAuthPath(hashFunction, root, leaf, leafIdx, authpath, n, h, pubSeed, addr) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
+  const buffer = new Uint8Array(2 * n);
+
+  let leafIdx1 = leafIdx;
+  if (leafIdx1 % 2 !== 0) {
+    for (let j = 0; j < n; j++) {
+      buffer.set([leaf[j]], n + j);
+    }
+    for (let j = 0; j < n; j++) {
+      buffer.set([authpath[j]], j);
+    }
+  } else {
+    for (let j = 0; j < n; j++) {
+      buffer.set([leaf[j]], j);
+    }
+    for (let j = 0; j < n; j++) {
+      buffer.set([authpath[j]], n + j);
+    }
+  }
+  let authPathOffset = n;
+
+  for (let i = 0; i < h - 1; i++) {
+    setTreeHeight(addr, i);
+    leafIdx1 >>>= 1;
+    setTreeIndex(addr, leafIdx1);
+    if (leafIdx1 % 2 !== 0) {
+      hashH(hashFunction, buffer.subarray(n, n + n), buffer, pubSeed, addr, n);
+      for (let j = 0; j < n; j++) {
+        buffer.set([authpath[authPathOffset + j]], j);
+      }
+    } else {
+      hashH(hashFunction, buffer.subarray(0, n), buffer, pubSeed, addr, n);
+      for (let j = 0; j < n; j++) {
+        buffer.set([authpath[authPathOffset + j]], j + n);
+      }
+    }
+    authPathOffset += n;
+  }
+  setTreeHeight(addr, h - 1);
+  leafIdx1 >>>= 1;
+  setTreeIndex(addr, leafIdx1);
+  hashH(hashFunction, root.subarray(0, n), buffer, pubSeed, addr, n);
+}
+
+/**
+ * @param {HashFunction} hashFunction
+ * @param {WOTSParams} wotsParams
+ * @param {Uint8Array} msg
+ * @param {Uint8Array} sigMsg
+ * @param {Uint8Array} pk
+ * @param {Uint32Array[number]} h
+ * @returns {boolean}
+ */
+function xmssVerifySig(hashFunction, wotsParams, msg, sigMsg, pk, h) {
+  let [sigMsgOffset] = new Uint32Array([0]);
+
+  const { n } = wotsParams;
+
+  const wotsPK = new Uint8Array(wotsParams.keySize);
+  const pkHash = new Uint8Array(n);
+  const root = new Uint8Array(n);
+  const hashKey = new Uint8Array(3 * n);
+
+  const pubSeed = new Uint8Array(n);
+  for (let pubSeedIndex = 0, pkIndex = n; pubSeedIndex < pubSeed.length && pkIndex < n + n; pubSeedIndex++, pkIndex++) {
+    pubSeed.set([pk[pkIndex]], pubSeedIndex);
+  }
+
+  // Init addresses
+  const otsAddr = new Uint32Array(8);
+  const lTreeAddr = new Uint32Array(8);
+  const nodeAddr = new Uint32Array(8);
+
+  setType(otsAddr, 0);
+  setType(lTreeAddr, 1);
+  setType(nodeAddr, 2);
+
+  // Extract index
+  const idx =
+    (new Uint32Array([sigMsg[0]])[0] << 24) |
+    (new Uint32Array([sigMsg[1]])[0] << 16) |
+    (new Uint32Array([sigMsg[2]])[0] << 8) |
+    new Uint32Array([sigMsg[3]])[0];
+
+  // Generate hash key (R || root || idx)
+  for (let hashKeyIndex = 0, sigMsgIndex = 4; hashKeyIndex < n && sigMsgIndex < 4 + n; hashKeyIndex++, sigMsgIndex++) {
+    hashKey.set([sigMsg[sigMsgIndex]], hashKeyIndex);
+  }
+  for (let hashKeyIndex = n, pkIndex = 0; hashKeyIndex < n + n && pkIndex < n; hashKeyIndex++, pkIndex++) {
+    hashKey.set([pk[pkIndex]], hashKeyIndex);
+  }
+  toByteLittleEndian(hashKey.subarray(2 * n, 2 * n + n), idx, n);
+
+  sigMsgOffset += n + 4;
+
+  // hash message
+  const msgHash = new Uint8Array(n);
+  const { error } = hMsg(hashFunction, msgHash, msg, hashKey, n);
+  if (error !== null) {
+    return false;
+  }
+
+  // Prepare Address
+  setOTSAddr(otsAddr, idx);
+  // Check WOTS signature
+  wotsPKFromSig(hashFunction, wotsPK, sigMsg.subarray(sigMsgOffset), msgHash, wotsParams, pubSeed, otsAddr);
+
+  sigMsgOffset += wotsParams.keySize;
+
+  // Compute Ltree
+  setLTreeAddr(lTreeAddr, idx);
+  lTree(hashFunction, wotsParams, pkHash, wotsPK, pubSeed, lTreeAddr);
+
+  // Compute root
+  validateAuthPath(hashFunction, root, pkHash, idx, sigMsg.subarray(sigMsgOffset), n, h, pubSeed, nodeAddr);
+
+  for (let i = 0; i < n; i++) {
+    if (root[i] !== pk[i]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 exports.ENDIAN = ENDIAN;
 exports.HASH_FUNCTION = HASH_FUNCTION;
+exports.WOTS_PARAM = WOTS_PARAM;
 exports.addrToByte = addrToByte;
 exports.bdsRound = bdsRound;
 exports.bdsTreeHashUpdate = bdsTreeHashUpdate;
@@ -1047,6 +1271,7 @@ exports.coreHash = coreHash;
 exports.expandSeed = expandSeed;
 exports.genChain = genChain;
 exports.genLeafWOTS = genLeafWOTS;
+exports.getHeightFromSigSize = getHeightFromSigSize;
 exports.getSeed = getSeed;
 exports.getSignatureSize = getSignatureSize;
 exports.hMsg = hMsg;
@@ -1072,6 +1297,9 @@ exports.shake256 = shake256;
 exports.toByteLittleEndian = toByteLittleEndian;
 exports.treeHashMinHeightOnStack = treeHashMinHeightOnStack;
 exports.treeHashUpdate = treeHashUpdate;
+exports.validateAuthPath = validateAuthPath;
 exports.wOTSPKGen = wOTSPKGen;
+exports.wotsPKFromSig = wotsPKFromSig;
 exports.wotsSign = wotsSign;
 exports.xmssFastSignMessage = xmssFastSignMessage;
+exports.xmssVerifySig = xmssVerifySig;
