@@ -239,12 +239,10 @@ describe('Test cases for [helper]', () => {
 
   describe('setLTreeAddr', () => {
     it('should set the lTree at index 4', () => {
-      const addr = getUInt32ArrayFromHex('000000000000000100000002000000030000000400000005000000060000000700000008');
+      const addr = getUInt32ArrayFromHex('0000000100000002000000030000000400000005000000060000000700000008');
       const lTree = getUInt32ArrayFromHex('00000014')[0];
       setLTreeAddr(addr, lTree);
-      const expectedAddr = getUInt32ArrayFromHex(
-        '000000000000000100000002000000030000001400000005000000060000000700000008'
-      );
+      const expectedAddr = getUInt32ArrayFromHex('0000000100000002000000030000000400000014000000060000000700000008');
 
       expect(addr).to.deep.equal(expectedAddr);
     });
@@ -252,12 +250,10 @@ describe('Test cases for [helper]', () => {
 
   describe('setOTSAddr', () => {
     it('should set the ots at index 4', () => {
-      const addr = getUInt32ArrayFromHex('000000000000000100000002000000030000000400000005000000060000000700000008');
+      const addr = getUInt32ArrayFromHex('0000000100000002000000030000000400000005000000060000000700000008');
       const ots = getUInt32ArrayFromHex('00000014')[0];
       setOTSAddr(addr, ots);
-      const expectedAddr = getUInt32ArrayFromHex(
-        '000000000000000100000002000000030000001400000005000000060000000700000008'
-      );
+      const expectedAddr = getUInt32ArrayFromHex('0000000100000002000000030000000400000014000000060000000700000008');
 
       expect(addr).to.deep.equal(expectedAddr);
     });
@@ -298,12 +294,10 @@ describe('Test cases for [helper]', () => {
 
   describe('setTreeHeight', () => {
     it('should set the keyAndMask at index 7', () => {
-      const addr = getUInt32ArrayFromHex('000000000000000100000002000000030000000400000005000000060000000700000008');
+      const addr = getUInt32ArrayFromHex('0000000100000002000000030000000400000005000000060000000700000008');
       const treeHeight = getUInt32ArrayFromHex('00000014')[0];
       setTreeHeight(addr, treeHeight);
-      const expectedAddr = getUInt32ArrayFromHex(
-        '000000000000000100000002000000030000000400000014000000060000000700000008'
-      );
+      const expectedAddr = getUInt32ArrayFromHex('0000000100000002000000030000000400000005000000140000000700000008');
 
       expect(addr).to.deep.equal(expectedAddr);
     });
@@ -311,12 +305,10 @@ describe('Test cases for [helper]', () => {
 
   describe('setTreeIndex', () => {
     it('should set the keyAndMask at index 7', () => {
-      const addr = getUInt32ArrayFromHex('000000000000000100000002000000030000000400000005000000060000000700000008');
+      const addr = getUInt32ArrayFromHex('0000000100000002000000030000000400000005000000060000000700000008');
       const treeIndex = getUInt32ArrayFromHex('00000012')[0];
       setTreeIndex(addr, treeIndex);
-      const expectedAddr = getUInt32ArrayFromHex(
-        '000000000000000100000002000000030000000400000005000000120000000700000008'
-      );
+      const expectedAddr = getUInt32ArrayFromHex('0000000100000002000000030000000400000005000000060000001200000008');
 
       expect(addr).to.deep.equal(expectedAddr);
     });

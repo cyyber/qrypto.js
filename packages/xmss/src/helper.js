@@ -48,6 +48,10 @@ export function sha256(out, msg) {
  * @param {Uint32Array[number]} typeValue
  */
 export function setType(addr, typeValue) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
   addr.set([typeValue], 3);
   for (let i = 4; i < 8; i++) {
     addr.set([0], i);
@@ -59,6 +63,10 @@ export function setType(addr, typeValue) {
  * @param {Uint32Array[number]} lTree
  */
 export function setLTreeAddr(addr, lTree) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
   addr.set([lTree], 4);
 }
 
@@ -67,6 +75,10 @@ export function setLTreeAddr(addr, lTree) {
  * @param {Uint32Array[number]} ots
  */
 export function setOTSAddr(addr, ots) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
   addr.set([ots], 4);
 }
 
@@ -75,6 +87,10 @@ export function setOTSAddr(addr, ots) {
  * @param {Uint32Array[number]} chain
  */
 export function setChainAddr(addr, chain) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
   addr.set([chain], 5);
 }
 
@@ -83,6 +99,10 @@ export function setChainAddr(addr, chain) {
  * @param {Uint32Array[number]} hash
  */
 export function setHashAddr(addr, hash) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
   addr.set([hash], 6);
 }
 
@@ -91,6 +111,10 @@ export function setHashAddr(addr, hash) {
  * @param {Uint32Array[number]} keyAndMask
  */
 export function setKeyAndMask(addr, keyAndMask) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
   addr.set([keyAndMask], 7);
 }
 
@@ -99,6 +123,10 @@ export function setKeyAndMask(addr, keyAndMask) {
  * @param {Uint32Array[number]} treeHeight
  */
 export function setTreeHeight(addr, treeHeight) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
   addr.set([treeHeight], 5);
 }
 
@@ -107,6 +135,10 @@ export function setTreeHeight(addr, treeHeight) {
  * @param {Uint32Array[number]} treeIndex
  */
 export function setTreeIndex(addr, treeIndex) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
   addr.set([treeIndex], 6);
 }
 
@@ -157,6 +189,9 @@ function toByteBigEndian(out, input, bytes) {
  * @param {function(): ENDIAN[keyof typeof ENDIAN]} getEndianFunc
  */
 export function addrToByte(out, addr, getEndianFunc = getEndian) {
+  if (out.length !== 32) {
+    throw new Error('out should be an array of size 32');
+  }
   if (addr.length !== 8) {
     throw new Error('addr should be an array of size 8');
   }

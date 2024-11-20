@@ -157,6 +157,10 @@ function sha256(out, msg) {
  * @param {Uint32Array[number]} typeValue
  */
 function setType(addr, typeValue) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
   addr.set([typeValue], 3);
   for (let i = 4; i < 8; i++) {
     addr.set([0], i);
@@ -168,6 +172,10 @@ function setType(addr, typeValue) {
  * @param {Uint32Array[number]} lTree
  */
 function setLTreeAddr(addr, lTree) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
   addr.set([lTree], 4);
 }
 
@@ -176,6 +184,10 @@ function setLTreeAddr(addr, lTree) {
  * @param {Uint32Array[number]} ots
  */
 function setOTSAddr(addr, ots) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
   addr.set([ots], 4);
 }
 
@@ -184,6 +196,10 @@ function setOTSAddr(addr, ots) {
  * @param {Uint32Array[number]} chain
  */
 function setChainAddr(addr, chain) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
   addr.set([chain], 5);
 }
 
@@ -192,6 +208,10 @@ function setChainAddr(addr, chain) {
  * @param {Uint32Array[number]} hash
  */
 function setHashAddr(addr, hash) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
   addr.set([hash], 6);
 }
 
@@ -200,6 +220,10 @@ function setHashAddr(addr, hash) {
  * @param {Uint32Array[number]} keyAndMask
  */
 function setKeyAndMask(addr, keyAndMask) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
   addr.set([keyAndMask], 7);
 }
 
@@ -208,6 +232,10 @@ function setKeyAndMask(addr, keyAndMask) {
  * @param {Uint32Array[number]} treeHeight
  */
 function setTreeHeight(addr, treeHeight) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
   addr.set([treeHeight], 5);
 }
 
@@ -216,6 +244,10 @@ function setTreeHeight(addr, treeHeight) {
  * @param {Uint32Array[number]} treeIndex
  */
 function setTreeIndex(addr, treeIndex) {
+  if (addr.length !== 8) {
+    throw new Error('addr should be an array of size 8');
+  }
+
   addr.set([treeIndex], 6);
 }
 
@@ -266,6 +298,9 @@ function toByteBigEndian(out, input, bytes) {
  * @param {function(): ENDIAN[keyof typeof ENDIAN]} getEndianFunc
  */
 function addrToByte(out, addr, getEndianFunc = getEndian) {
+  if (out.length !== 32) {
+    throw new Error('out should be an array of size 32');
+  }
   if (addr.length !== 8) {
     throw new Error('addr should be an array of size 8');
   }
