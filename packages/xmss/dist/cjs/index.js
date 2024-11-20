@@ -591,6 +591,10 @@ function lTree(hashFunction, params, leaf, wotsPK, pubSeed, addr) {
  * @param {Uint32Array} otsAddr
  */
 function genLeafWOTS(hashFunction, leaf, skSeed, xmssParams, pubSeed, lTreeAddr, otsAddr) {
+  if (otsAddr.length !== 8) {
+    throw new Error('otsAddr should be an array of size 8');
+  }
+
   const seed = new Uint8Array(xmssParams.n);
   const pk = new Uint8Array(xmssParams.wotsParams.keySize);
 
