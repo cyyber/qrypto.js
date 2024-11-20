@@ -171,7 +171,7 @@ export function lTree(hashFunction, params, leaf, wotsPK, pubSeed, addr) {
         n
       );
     }
-    if (l % 2 === 1) {
+    if ((l & 1) === 1) {
       const destStartOffset = (l >>> 1) * n;
       const srcStartOffset = (l - 1) * n;
       for (
@@ -247,7 +247,7 @@ export function bdsRound(hashFunction, bdsState, leafIdx, skSeed, params, pubSee
   setType(nodeAddr, 2);
 
   for (let i = 0; i < h; i++) {
-    if ((leafIdx >>> i) % 2 === 0) {
+    if (((leafIdx >>> i) & 1) === 0) {
       tau = i;
       break;
     }
