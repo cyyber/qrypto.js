@@ -1177,7 +1177,7 @@ function validateAuthPath(hashFunction, root, leaf, leafIdx, authpath, n, h, pub
   const buffer = new Uint8Array(2 * n);
 
   let leafIdx1 = leafIdx;
-  if (leafIdx1 % 2 !== 0) {
+  if ((leafIdx1 & 1) === 1) {
     for (let j = 0; j < n; j++) {
       buffer.set([leaf[j]], n + j);
     }
@@ -1198,7 +1198,7 @@ function validateAuthPath(hashFunction, root, leaf, leafIdx, authpath, n, h, pub
     setTreeHeight(addr, i);
     leafIdx1 >>>= 1;
     setTreeIndex(addr, leafIdx1);
-    if (leafIdx1 % 2 !== 0) {
+    if ((leafIdx1 & 1) === 1) {
       hashH(hashFunction, buffer.subarray(n, n + n), buffer, pubSeed, addr, n);
       for (let j = 0; j < n; j++) {
         buffer.set([authpath[authPathOffset + j]], j);
